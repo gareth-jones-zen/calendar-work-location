@@ -10,7 +10,9 @@ internal sealed class FakeCalendar : ICalendar
     public List<string> Writes { get; } = [];
     private int next;
 
-    public IReadOnlyList<Segment> WorkPlan(DateOnly first, DateOnly last) =>
+    public Exception? Fail { get; set; }
+
+    public IReadOnlyList<Segment> WorkPlan(DateOnly first, DateOnly last) => Fail is { } fail ? throw fail :
         Plan.Where(s => s.End > first.ToDateTime(TimeOnly.MinValue) && s.Start < last.AddDays(1).ToDateTime(TimeOnly.MinValue)).ToList();
 
     public IReadOnlyList<CalEvent> Events(DateOnly first, DateOnly last) =>
@@ -226,6 +228,22 @@ public sealed class WorkLocationTests : IDisposable
         Assert.Equal(1, code);
         Assert.Contains("more than max_deletes (3)", error);
         Assert.Empty(calendar.Writes);
+    }
+
+    [Fact]
+    public void A_passing_failure_isnt_notified_until_the_third_run_in_a_row()
+    {
+        // 19 Nov 2026, 21:54: a run on waking, before the network was up. The next run was fine.
+        calendar.Fail = new HttpRequestException("Couldn't find login.microsoftonline.com");
+        Assert.DoesNotContain("NOTIFIED", Run(Settings, "run").Out);
+        Assert.DoesNotContain("NOTIFIED", Run(Settings, "run").Out);
+        Assert.Contains("NOTIFIED work-location couldn't run", Run(Settings, "run").Out);
+        Assert.DoesNotContain("NOTIFIED", Run(Settings, "run").Out);   // once only
+        calendar.Fail = null;
+        calendar.Week("2026-11-23", "remote");
+        Assert.Equal(0, Run(Settings, "run").Code);                     // a good run starts the count again
+        calendar.Fail = new HttpRequestException("again");
+        Assert.DoesNotContain("NOTIFIED", Run(Settings, "run").Out);
     }
 
     [Fact]

@@ -243,14 +243,19 @@ public static class Cli
         try
         {
             Logger.Create(config.LogFile, null, clock: host.Now)($"run failed: {error.GetType().Name}: {error.Message}");
+            // Notified on the third failure in a row (0.1.1), as the other tools do: a run on waking can find the network
+            // not up yet (19 Nov 2026, 21:54: "Couldn't find login.microsoftonline.com"), and the next run is fine. A sign-in
+            // or a safety stop won't clear by itself, so those are notified at once. Once only, until a run succeeds.
             var state = LoadState(config.StateFile);
-            if (state["failing"] is null)
+            var failures = (state["failures"]?.GetValue<int>() ?? 0) + 1;
+            state["failures"] = failures;
+            if (state["notified"] is null && (failures >= 3 || error is SignInNeededException or SafetyStop))
             {
                 if (config.Notify)
                     host.Notify("work-location couldn't run", [error.Message, $"Log: {config.LogFile}"]);
-                state["failing"] = host.Now().ToString("yyyy-MM-ddTHH:mm:ss", En);
-                SaveState(config.StateFile, state);
+                state["notified"] = host.Now().ToString("yyyy-MM-ddTHH:mm:ss", En);
             }
+            SaveState(config.StateFile, state);
         }
         catch (Exception)
         {
@@ -261,7 +266,7 @@ public static class Cli
     private static void ForgetFailure(Config config)
     {
         var state = LoadState(config.StateFile);
-        if (state.Remove("failing"))
+        if (state.Remove("failures") | state.Remove("notified") | state.Remove("failing"))
             SaveState(config.StateFile, state);
     }
 

@@ -52,8 +52,9 @@ is put back. An all-day entry of yours with the same title (made by hand) is lef
 are never touched. Declined and cancelled events don't count.
 
 **Safety:** if your work plan comes back empty for the whole period while entries would be removed, or a run would
-remove more than `max_deletes` (default 10) entries, it changes nothing and says why. A run that fails is logged and
-notified once, until one succeeds. A write whose answer is lost is never resent: the next run reads the calendar.
+remove more than `max_deletes` (default 10) entries, it changes nothing and says why. A run that fails is logged, and
+notified on the third failure in a row (a run on waking can find the network not up yet), or at once for a
+sign-in or a safety stop; once only, until a run succeeds. A write whose answer is lost is never resent: the next run reads the calendar.
 
 ## Commands
 
