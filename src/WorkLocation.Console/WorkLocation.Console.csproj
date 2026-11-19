@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>work-location</AssemblyName>
+    <RootNamespace>WorkLocation</RootNamespace>
+    <PublishAot>true</PublishAot>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\WorkLocation\WorkLocation.csproj" />
+  </ItemGroup>
+</Project>

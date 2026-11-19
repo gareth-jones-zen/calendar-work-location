@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="src/WorkLocation/WorkLocation.csproj" />
+  <Project Path="src/WorkLocation.Console/WorkLocation.Console.csproj" />
+  <Project Path="src/WorkLocation.Background/WorkLocation.Background.csproj" />
+
+  <Project Path="tests/WorkLocation.Tests/WorkLocation.Tests.csproj" />
+</Solution>
