@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Nodes;
+using CalendarDays;
 
 namespace WorkLocation;
 
@@ -15,6 +16,9 @@ public sealed record CalEvent(string Id, string Subject, DateTime Start, DateTim
 {
     public DateOnly? OwnedDay { get; init; }
     public string Hash { get; init; } = "";
+
+    /// <summary>This event as the shared day rules see it.</summary>
+    public DayEvent ForRules() => new(Subject, Start, End, AllDay, ShowAs, Categories, Mine, Attendees);
 }
 
 public enum Where { None, Leave, Office, Remote, Elsewhere }
@@ -71,30 +75,26 @@ public static class Planner
     }
 
     /// <summary>Where you are on a day, and why: leave first, then a sign in your calendar that you're elsewhere,
-    /// then your work plan.</summary>
+    /// then your work plan. The leave and elsewhere rules are background-tools-lib's CalendarDays, shared with
+    /// out-of-office.</summary>
     public static (Where Where, string Why, string? Subject) Decide(Config config, IReadOnlyList<Segment> workPlan,
         IReadOnlyList<CalEvent> events, DateOnly day)
     {
-        if (day.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
+        if (DayRules.Weekend(day))
             return (Where.None, "weekend", null);
         var start = day.ToDateTime(TimeOnly.MinValue);
         var end = start.AddDays(1);
+        var days = events.Select(e => e.ForRules()).ToList();
 
-        var leave = events.Where(e => e.Mine && e.Attendees == 0 && Covers(e, day)
-                                      && (config.LeaveSubjects.IsMatch(e.Subject) || e.Categories.Any(c => config.LeaveCategories.Contains(c, StringComparer.OrdinalIgnoreCase))))
-            .ToList();
-        var leaveHours = Hours(leave, start, end);
-        if (leaveHours >= config.LeaveMinHours - 1e-9 || leave.Any(e => e.AllDay))
-            return (Where.Leave, $"leave: {leave[0].Subject}", null);
+        var leave = DayRules.Leave(config.LeaveRules, days, day);
+        if (leave.DayOff)
+            return (Where.Leave, $"leave: {leave.Entries[0].Subject}", null);
 
-        var allDay = events.FirstOrDefault(e => e.AllDay && Covers(e, day) && config.ElsewhereSubjects?.IsMatch(e.Subject) == true);
-        if (allDay is not null)
-            return (Where.Elsewhere, $"all-day \"{allDay.Subject}\"", allDay.Subject);
-        var shown = events.FirstOrDefault(e => Covers(e, day) && config.ElsewhereShowAs.Contains(e.ShowAs, StringComparer.OrdinalIgnoreCase)
-                                               && !string.Equals(e.Subject.Trim(), config.Office.Title, StringComparison.OrdinalIgnoreCase)
-                                               && !string.Equals(e.Subject.Trim(), config.Remote.Title, StringComparison.OrdinalIgnoreCase));
-        if (shown is not null)
-            return (Where.Elsewhere, $"\"{shown.Subject}\" shown as {shown.ShowAs}", shown.Subject);
+        var away = DayRules.Elsewhere(config.ElsewhereRules, days, day,
+            e => string.Equals(e.Subject.Trim(), config.Office.Title, StringComparison.OrdinalIgnoreCase)
+                 || string.Equals(e.Subject.Trim(), config.Remote.Title, StringComparison.OrdinalIgnoreCase));
+        if (away is not null)
+            return (Where.Elsewhere, away.Why, away.Event.Subject);
 
         var today = workPlan.Where(s => s.Start < end && s.End > start).ToList();
         if (today.Any(s => s.Location == "office"))
@@ -104,32 +104,7 @@ public static class Planner
         return (Where.None, "no work plan", null);
     }
 
-    private static bool Covers(CalEvent e, DateOnly day)
-    {
-        var start = day.ToDateTime(TimeOnly.MinValue);
-        return e.Start < start.AddDays(1) && e.End > start;
-    }
-
-    private static double Hours(IEnumerable<CalEvent> events, DateTime start, DateTime end)
-    {
-        // Merge overlaps, so two leave entries over the same hours count once.
-        double total = 0;
-        DateTime? spanStart = null, spanEnd = null;
-        foreach (var e in events.Select(e => (S: e.Start < start ? start : e.Start, E: e.End > end ? end : e.End)).Where(x => x.E > x.S).OrderBy(x => x.S))
-        {
-            if (spanEnd is null || e.S > spanEnd)
-            {
-                if (spanEnd is not null)
-                    total += (spanEnd.Value - spanStart!.Value).TotalHours;
-                (spanStart, spanEnd) = (e.S, e.E);
-            }
-            else if (e.E > spanEnd)
-                spanEnd = e.E;
-        }
-        if (spanEnd is not null)
-            total += (spanEnd.Value - spanStart!.Value).TotalHours;
-        return total;
-    }
+    private static bool Covers(CalEvent e, DateOnly day) => DayRules.Covers(e.ForRules(), day);
 
     /// <summary>The title for an elsewhere day: the template with {subject}, without a leading "At " the subject already
     /// has ("At XConf Europe, limited availability" doesn't become "At At ...").</summary>

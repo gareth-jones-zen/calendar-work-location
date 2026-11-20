@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using CalendarDays;
 using PyCompat;
 using Tomlyn;
 using Tomlyn.Model;
@@ -82,6 +83,12 @@ public sealed class Config
 
     /// <summary>Leave covering at least this many hours of a day makes it a day off (a half day isn't).</summary>
     public double LeaveMinHours { get; init; } = 6;
+
+    /// <summary>The leave settings as CalendarDays' rules.</summary>
+    public LeaveRules LeaveRules => new(LeaveSubjects, LeaveCategories, LeaveMinHours);
+
+    /// <summary>The elsewhere settings as CalendarDays' rules: a subject on an all-day event, or a show-as of any length.</summary>
+    public ElsewhereRules ElsewhereRules => new(ElsewhereSubjects, ElsewhereShowAs);
 
     public const string DefaultElsewhere = @"\b(conference|summit|expo|exhibition|trade show|off-?site)\b";
     public const string DefaultLeave = @"^\s*(holiday\b|annual leave|bank holiday|on leave|summer holidays?)";

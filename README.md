@@ -46,6 +46,10 @@ Today and the next `weeks_ahead` weeks (default 4), Monday to Friday:
    Days with no work plan get nothing. Your work plan's "time off" stretches (out-of-office blocks such as travel) are
    ignored.
 
+The leave and elsewhere rules are [background-tools-lib](https://github.com/gareth-jones-zen/background-tools-lib)'s
+`CalendarDays` (0.1.2 on), shared with [out-of-office](https://github.com/gareth-jones-zen/out-of-office), so the two
+agree on what a day is.
+
 **It only ever changes its own entries**, which carry a hidden property (the day they stand for, and a hash of what
 was written). The calendar is the only record, so an entry deleted by hand is written again, and one edited by hand
 is put back. An all-day entry of yours with the same title (made by hand) is left alone, and none is added. Past days
