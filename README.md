@@ -26,7 +26,7 @@ Windows (x64) only; nothing else is needed.
 2. Unzip it to a folder that will stay put, such as `%LOCALAPPDATA%\Programs\calendar-work-location`.
 3. `calendar-work-location config` creates the settings file; edit the titles. `calendar-work-location sign-in` signs you in (once).
 4. `calendar-work-location plan` shows what it would do; `calendar-work-location run` does it; `calendar-work-location autostart on` keeps it
-   up to date by itself (every 15 minutes, at logon and a minute after each unlock).
+   up to date by itself (every 15 minutes and at logon; `after_unlock_minutes` adds a run after each unlock).
 
 **It needs Calendars.ReadWrite** on Microsoft's "Graph Command Line Tools" app; `sign-in` asks for it.
 
@@ -42,8 +42,8 @@ old folder.
 ## How each day is decided
 
 Today and the next `weeks_ahead` weeks (default 4), or, if `weeks_ahead` isn't set, to the same date
-`calendar_months_ahead` calendar months on (usually shared from a base file with other calendar tools), Monday to
-Friday:
+`calendar_months_ahead` calendar months on (usually shared from a base file with other calendar tools; the work plan
+is read 30 days at a time, as Graph refuses more than 31 days in one request), Monday to Friday:
 
 1. **Leave: no entry.** Your own entries (no one else invited) whose subject matches `leave.subjects` (by default
    starting "Holiday", "Annual leave", "Bank holiday", "On leave" or "Summer holidays") or in a `leave.categories`
@@ -77,7 +77,7 @@ sign-in or a safety stop; once only, until a run succeeds. A write whose answer 
 calendar-work-location plan               each day: where you are, why, and what a run would change
 calendar-work-location run [--dry-run]    make the calendar match
 calendar-work-location remove [--dry-run] take out its entries from today on
-calendar-work-location autostart on       run every few minutes, at logon and after each unlock (off, restart, status)
+calendar-work-location autostart on       run every few minutes and at logon (off, restart, status)
 calendar-work-location sign-in            sign in to Microsoft (once; opens a browser)
 calendar-work-location config             create the settings file (if missing) and say where it is
 ```
@@ -102,7 +102,7 @@ weeks_ahead = 4                   # today and this many weeks on; wins over cale
 # calendar_months_ahead = 3       # if weeks_ahead isn't set: today to the same date this many calendar months on
                                   # (usually shared from a base file with other calendar tools)
 every_minutes = 15                # autostart
-after_unlock_minutes = 1          # autostart; 0 for none
+after_unlock_minutes = 0          # autostart: minutes after each unlock to run as well; 0 (the default) for none
 notify = true                     # a notification when runs start failing
 max_deletes = 10
 body = "Written by calendar-work-location from your work plan and calendar. Changes made here are overwritten."

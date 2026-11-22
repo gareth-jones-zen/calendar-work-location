@@ -42,7 +42,7 @@ public static class Cli
         "    calendar-work-location plan               each day: where you are, why, and what a run would change\n" +
         "    calendar-work-location run                make the calendar match (--dry-run: say what, change nothing)\n" +
         "    calendar-work-location remove             take out its entries from today on (--dry-run)\n" +
-        "    calendar-work-location autostart on       run every few minutes, at logon and after unlocking (off, restart, status)\n" +
+        "    calendar-work-location autostart on       run every few minutes and at logon (off, restart, status)\n" +
         "    calendar-work-location sign-in            sign in to Microsoft (once; opens a browser)\n" +
         "    calendar-work-location config             create the settings file (if missing) and say where it is\n\n" +
         "options:\n" +

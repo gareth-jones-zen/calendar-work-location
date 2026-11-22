@@ -41,11 +41,41 @@ public sealed class GraphCalendar(GraphClient graph, TimeZoneInfo zone) : ICalen
     private string Utc(DateOnly day) =>
         TimeZoneInfo.ConvertTimeToUtc(day.ToDateTime(TimeOnly.MinValue), zone).ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture);
 
-    public IReadOnlyList<Segment> WorkPlan(DateOnly first, DateOnly last)
+    /// <summary>The longest range, in days, asked of the work-plan view at once. Graph refuses more than 31 days
+    /// ("The maximum allowed range between startDateTime and endDateTime is 31 days"); 30 keeps a margin for the hour a
+    /// clock change adds to a range measured in UTC.</summary>
+    public const int WorkPlanChunkDays = 30;
+
+    public IReadOnlyList<Segment> WorkPlan(DateOnly first, DateOnly last) =>
+        ReadInChunks(first, last, WorkPlanChunkDays, (from, to) =>
+        {
+            var url = $"/me/settings/workHoursAndLocations/occurrencesView(startDateTime='{Utc(from)}',endDateTime='{Utc(to.AddDays(1))}')";
+            return graph.PagesAsync(url, Scopes, Headers).ToBlockingEnumerable().OfType<JsonObject>();
+        });
+
+    /// <summary>The work plan from first to last (inclusive), read as consecutive whole-day ranges of at most
+    /// <paramref name="chunkDays"/> days, so a long period never asks Graph for more than it allows. The ranges meet at
+    /// midnight without overlapping; an occurrence returned by two of them (one crossing midnight) is kept once, by its
+    /// id, or by its start, end and location when it has none.</summary>
+    public static IReadOnlyList<Segment> ReadInChunks(DateOnly first, DateOnly last, int chunkDays,
+        Func<DateOnly, DateOnly, IEnumerable<JsonObject>> read)
     {
-        var url = $"/me/settings/workHoursAndLocations/occurrencesView(startDateTime='{Utc(first)}',endDateTime='{Utc(last.AddDays(1))}')";
-        return graph.PagesAsync(url, Scopes, Headers).ToBlockingEnumerable().OfType<JsonObject>()
-            .Select(o => new Segment(Time(o["start"]), Time(o["end"]), Text(o, "workLocationType") ?? "unknown")).ToList();
+        ArgumentOutOfRangeException.ThrowIfLessThan(chunkDays, 1);
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var segments = new List<Segment>();
+        for (var from = first; from <= last; from = from.AddDays(chunkDays))
+        {
+            var end = from.AddDays(chunkDays - 1);
+            var to = end < last ? end : last;
+            foreach (var o in read(from, to))
+            {
+                var segment = new Segment(Time(o["start"]), Time(o["end"]), Text(o, "workLocationType") ?? "unknown");
+                var key = Text(o, "id") ?? $"{segment.Start:O}|{segment.End:O}|{segment.Location}";
+                if (seen.Add(key))
+                    segments.Add(segment);
+            }
+        }
+        return segments;
     }
 
     public IReadOnlyList<CalEvent> Events(DateOnly first, DateOnly last)

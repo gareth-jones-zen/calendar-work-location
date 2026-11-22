@@ -64,7 +64,7 @@ public sealed class Config
     /// usually from a base file shared with other calendar tools).</summary>
     public int? MonthsAhead { get; init; }
     public int EveryMinutes { get; init; } = 15;
-    public int? AfterUnlockMinutes { get; init; } = 1;
+    public int? AfterUnlockMinutes { get; init; }   // none by default (GJ, 22 Nov 2026): every 15 minutes and logon are enough
     public bool Notify { get; init; } = true;
     public int MaxDeletes { get; init; } = 10;
     public string Body { get; init; } = "Written by calendar-work-location from your work plan and calendar. Changes made here are overwritten.";
@@ -234,7 +234,7 @@ public sealed class Config
             WeeksAhead = Whole("weeks_ahead", 4, 0, 52),
             MonthsAhead = !raw.ContainsKey("weeks_ahead") && raw.ContainsKey("calendar_months_ahead") ? Whole("calendar_months_ahead", 3, 1, 12) : null,
             EveryMinutes = Whole("every_minutes", 15, 1, 1440),
-            AfterUnlockMinutes = raw.ContainsKey("after_unlock_minutes") ? Whole("after_unlock_minutes", 1, 0, 60) is var u && u > 0 ? u : null : 1,
+            AfterUnlockMinutes = Whole("after_unlock_minutes", 0, 0, 60) is var u && u > 0 ? u : null,
             Notify = Flag("notify", true),
             MaxDeletes = Whole("max_deletes", 10, 0, 1000),
             Body = Text(raw, "body", "body") ?? "Written by calendar-work-location from your work plan and calendar. Changes made here are overwritten.",
