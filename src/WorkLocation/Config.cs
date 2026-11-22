@@ -96,23 +96,24 @@ public sealed class Config
     /// <summary>Events shown as one of these: elsewhere that day.</summary>
     public IReadOnlyList<string> ElsewhereShowAs { get; init; } = ["workingElsewhere"];
 
-    /// <summary>Your own entries (no one else invited) matching this are leave.</summary>
-    public required Regex LeaveSubjects { get; init; }
+    /// <summary>The [leave] settings: background-tools-lib's shared LeaveSettings (subjects, categories, min_hours,
+    /// half_day, bank_holiday_subjects, bank_holiday_categories), which a base file's [leave] can supply. Leave covering
+    /// min_hours of a day (or all day) makes it a day off (a half day isn't); a bank holiday is a day off too.</summary>
+    public LeaveSettings Leave { get; init; } = Defaults;
 
-    /// <summary>Your own entries in these categories are leave (bank holidays, often).</summary>
-    public IReadOnlyList<string> LeaveCategories { get; init; } = ["Holiday"];
-
-    /// <summary>Leave covering at least this many hours of a day makes it a day off (a half day isn't).</summary>
-    public double LeaveMinHours { get; init; } = 6;
+    /// <summary>This tool's defaults for [leave]: the shared ones, with Outlook's "Holiday" category as leave.</summary>
+    public static readonly LeaveSettings Defaults = new() { Categories = ["Holiday"] };
 
     /// <summary>The leave settings as CalendarDays' rules.</summary>
-    public LeaveRules LeaveRules => new(LeaveSubjects, LeaveCategories, LeaveMinHours);
+    public LeaveRules LeaveRules => Leave.Rules;
+
+    /// <summary>Notes on the [leave] settings for the log (bank holidays still given as leave).</summary>
+    public IReadOnlyList<string> LeaveNotes { get; init; } = [];
 
     /// <summary>The elsewhere settings as CalendarDays' rules: a subject on an all-day event, or a show-as of any length.</summary>
     public ElsewhereRules ElsewhereRules => new(ElsewhereSubjects, ElsewhereShowAs);
 
     public const string DefaultElsewhere = @"\b(conference|summit|expo|exhibition|trade show|off-?site)\b";
-    public const string DefaultLeave = @"^\s*(holiday\b|annual leave|bank holiday|on leave|summer holidays?)";
 
     public static string? Environment(string name) =>
         string.IsNullOrEmpty(name) || name.Contains('\0') ? null : System.Environment.GetEnvironmentVariable(name);
@@ -226,11 +227,20 @@ public sealed class Config
         }
 
         var elsewhere = Section("elsewhere");
-        var leave = Section("leave");
-        Strict(leave, "leave", "subjects", "categories", "min_hours");
-        var minHours = leave.TryGetValue("min_hours", out var mh)
-            ? mh switch { long l and >= 0 and <= 24 => l, double d and >= 0 and <= 24 => d, _ => throw Bad("leave.min_hours should be a number of hours, 0 to 24.") }
-            : 6;
+        LeaveSettings leaveSettings;
+        try
+        {
+            leaveSettings = LeaveSettings.Parse(Section("leave"), full, defaults: Defaults);
+        }
+        catch (FormatException error)
+        {
+            throw new UsageException(error.Message);
+        }
+        var leaveNotes = new List<string>();
+        if (leaveSettings.Categories.Any(c => leaveSettings.BankHolidayCategories.Contains(c, StringComparer.OrdinalIgnoreCase))
+            || leaveSettings.Subjects.IsMatch("Bank holiday"))
+            leaveNotes.Add("settings: [leave] subjects or categories still name bank holidays: they're recognised by " +
+                           "bank_holiday_subjects / bank_holiday_categories now, so they can come out of subjects and categories");
         var signals = Strings(elsewhere, "show_as_signals", "elsewhere.show_as_signals") ?? ["workingElsewhere"];
         foreach (var s in signals)
             if (!ShowAsValues.Contains(s))
@@ -287,9 +297,8 @@ public sealed class Config
             Elsewhere = Style("elsewhere", elsewhere, "At {subject}", "subjects", "show_as_signals"),
             ElsewhereSubjects = subjects.Length == 0 ? null : Pattern(subjects, "elsewhere.subjects"),
             ElsewhereShowAs = signals,
-            LeaveSubjects = Pattern(Text(leave, "subjects", "leave.subjects") ?? DefaultLeave, "leave.subjects"),
-            LeaveCategories = Strings(leave, "categories", "leave.categories") ?? ["Holiday"],
-            LeaveMinHours = minHours,
+            Leave = leaveSettings,
+            LeaveNotes = leaveNotes,
         };
     }
 

@@ -45,10 +45,13 @@ Today and the next `weeks_ahead` weeks (default 4), or, if `weeks_ahead` isn't s
 `calendar_months_ahead` calendar months on (usually shared from a base file with other calendar tools; the work plan
 is read 30 days at a time, as Graph refuses more than 31 days in one request), Monday to Friday:
 
-1. **Leave: no entry.** Your own entries (no one else invited) whose subject matches `leave.subjects` (by default
-   starting "Holiday", "Annual leave", "Bank holiday", "On leave" or "Summer holidays") or in a `leave.categories`
-   category (default "Holiday"), covering at least `leave.min_hours` (default 6) of the day. A half day off still gets
-   an entry. Your leave entry already says where you are.
+1. **A bank holiday or leave: no entry.** A bank holiday is one of your own entries whose subject matches
+   `leave.bank_holiday_subjects` (by default starting "Bank holiday") or that is in a `leave.bank_holiday_categories`
+   category (default "Bank holiday", calendar-bank-holidays' category). Leave is your own entries (no one else
+   invited) whose subject matches `leave.subjects` (by default starting "Holiday", "Annual leave", "On leave" or
+   "Summer holidays") or in a `leave.categories` category (default "Holiday"), covering at least `leave.min_hours`
+   (default 6) of the day. A half day off still gets an entry. Your leave entry already says where you are.
+
 2. **Elsewhere: "At {subject}".** An all-day event whose subject matches `elsewhere.subjects` (conference, summit,
    expo, exhibition, trade show, off-site), or else any event shown as *Working elsewhere* (`show_as_signals`). The
    title uses that event's subject, without a second "At" ("At XConf Europe, limited availability" becomes "At XConf
@@ -60,6 +63,17 @@ is read 30 days at a time, as Graph refuses more than 31 days in one request), M
 The leave and elsewhere rules are [background-tools-lib](https://github.com/gareth-jones-zen/background-tools-lib)'s
 `CalendarDays` (0.1.2 on), shared with [out-of-office](https://github.com/gareth-jones-zen/out-of-office), so the two
 agree on what a day is.
+
+### [leave]
+
+The `[leave]` keys are background-tools-lib's shared leave settings (`subjects`, `categories`, `min_hours`,
+`half_day`, `bank_holiday_subjects`, `bank_holiday_categories`; 0.6.0 on): see its README, "`[leave]`: the shared leave
+settings". With `base = "base-config.toml"`, a base file's `[leave]` can hold them once for every tool that reads
+leave (this tool, calendar-out-of-office, meeting-preps), as long as this file has a `[leave]` section, even an empty
+one. The only difference here: `categories` defaults to `["Holiday"]`. Settings from before 0.6.0 that list bank
+holidays as leave (`"bank holiday"` in `subjects`, `"Bank holiday"` in `categories`) still give the same plan, and the
+log suggests moving them.
+
 
 **It only ever changes its own entries**, which carry a hidden property (the day they stand for, and a hash of what
 was written). The calendar is the only record, so an entry deleted by hand is written again, and one edited by hand
@@ -118,10 +132,12 @@ title = "At {subject}"
 subjects = '\b(conference|summit|expo|exhibition|trade show|off-?site)\b'   # "" for none
 show_as_signals = ["workingElsewhere"]
 
-[leave]
-subjects = '^\s*(holiday\b|annual leave|bank holiday|on leave|summer holidays?)'
+[leave]                           # or in a base file: see [leave] below
+subjects = '^\s*(holiday\b|annual leave|on leave|summer holidays?)'
 categories = ["Holiday"]
 min_hours = 6
+bank_holiday_subjects = '^\s*bank holiday\b'
+bank_holiday_categories = ["Bank holiday"]
 
 [schedule]                        # when the task runs: see below
 every_minutes = 15

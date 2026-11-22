@@ -74,7 +74,7 @@ public static class Planner
         return plans;
     }
 
-    /// <summary>Where you are on a day, and why: leave first, then a sign in your calendar that you're elsewhere,
+    /// <summary>Where you are on a day, and why: a bank holiday or leave first, then a sign in your calendar that you're elsewhere,
     /// then your work plan. The leave and elsewhere rules are background-tools-lib's CalendarDays, shared with
     /// out-of-office.</summary>
     public static (Where Where, string Why, string? Subject) Decide(Config config, IReadOnlyList<Segment> workPlan,
@@ -86,6 +86,9 @@ public static class Planner
         var end = start.AddDays(1);
         var days = events.Select(e => e.ForRules()).ToList();
 
+        var bank = days.FirstOrDefault(e => DayRules.Covers(e, day) && config.Leave.IsBankHoliday(e));
+        if (bank is not null)
+            return (Where.Leave, $"bank holiday: {bank.Subject}", null);
         var leave = DayRules.Leave(config.LeaveRules, days, day);
         if (leave.DayOff)
             return (Where.Leave, $"leave: {leave.Entries[0].Subject}", null);

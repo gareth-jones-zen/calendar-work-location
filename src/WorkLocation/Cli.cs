@@ -150,6 +150,8 @@ public static class Cli
         }
         if (config.DeprecatedScheduleKeys.Count > 0)
             log($"settings: {string.Join(" and ", config.DeprecatedScheduleKeys)} at the top level are deprecated: move them to [schedule]");
+        foreach (var note in config.LeaveNotes)
+            log(note);
         if (!dryRun && !config.Schedule.IsActive(host.Now(), out var why))
         {
             host.Out.WriteLine($"Outside the [schedule] ({why}): nothing done.");
