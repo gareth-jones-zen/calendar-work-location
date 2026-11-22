@@ -11,7 +11,7 @@ public interface ICalendar
     /// <summary>Your work plan from first to last (inclusive).</summary>
     IReadOnlyList<Segment> WorkPlan(DateOnly first, DateOnly last);
 
-    /// <summary>Every event from first to last (inclusive), with work-location's property where it wrote them.</summary>
+    /// <summary>Every event from first to last (inclusive), with calendar-work-location's property where it wrote them.</summary>
     IReadOnlyList<CalEvent> Events(DateOnly first, DateOnly last);
 
     string Create(JsonObject body);
@@ -21,7 +21,7 @@ public interface ICalendar
 
 /// <summary>Your Outlook calendar and work plan, through Microsoft Graph (Calendars.ReadWrite).
 ///
-/// <para><b>An entry is work-location's only if it carries its extended property</b> (a hidden single-value MAPI
+/// <para><b>An entry is calendar-work-location's only if it carries its extended property</b> (a hidden single-value MAPI
 /// property: the day it stands for), plus a second holding a hash of what was written. The calendar is the only
 /// record: there's no local list, so a lost state file is harmless and an entry deleted by hand is written again at
 /// the next run. Nothing without the property is ever changed or deleted.</para>
@@ -30,7 +30,7 @@ public interface ICalendar
 public sealed class GraphCalendar(GraphClient graph, TimeZoneInfo zone) : ICalendar
 {
     public static readonly string[] Scopes = ["Calendars.ReadWrite"];
-    public const string PropertySet = "{6f1d0c2e-9a7b-4d55-b3a1-0c5e8f2d4a17}";   // work-location's own; never change it
+    public const string PropertySet = "{6f1d0c2e-9a7b-4d55-b3a1-0c5e8f2d4a17}";   // the tool's own; never change it (named before the tool became calendar-work-location: renaming it would orphan every entry already written)
     public const string DayProp = $"String {PropertySet} Name work-location.day";
     public const string HashProp = $"String {PropertySet} Name work-location.hash";
 
@@ -67,7 +67,7 @@ public sealed class GraphCalendar(GraphClient graph, TimeZoneInfo zone) : ICalen
     public void Delete(string id) =>
         graph.RequestAsync($"/me/events/{Uri.EscapeDataString(id)}", HttpMethod.Delete, null, Scopes, Headers).GetAwaiter().GetResult();
 
-    /// <summary>The body with work-location's properties: the day, and the hash of what's written.</summary>
+    /// <summary>The body with calendar-work-location's properties: the day, and the hash of what's written.</summary>
     public static JsonObject Stamped(JsonObject body)
     {
         var output = (JsonObject)body.DeepClone();
@@ -118,7 +118,7 @@ public sealed class GraphCalendar(GraphClient graph, TimeZoneInfo zone) : ICalen
         Tenant = config.Tenant,
         LoginHint = config.LoginHint,
         Scopes = Scopes,
-        SignInHint = "At a console, run: work-location sign-in",
+        SignInHint = "At a console, run: calendar-work-location sign-in",
         Log = Logger.Create(config.LogFile),
     });
 }

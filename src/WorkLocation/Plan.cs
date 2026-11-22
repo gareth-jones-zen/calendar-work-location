@@ -9,7 +9,7 @@ namespace WorkLocation;
 /// <summary>One stretch of a day in your work plan (Graph's workLocationType: office, remote, timeOff), local time.</summary>
 public sealed record Segment(DateTime Start, DateTime End, string Location);
 
-/// <summary>A calendar event as read, local time. <see cref="OwnedDay"/> is set when work-location wrote it: the day it
+/// <summary>A calendar event as read, local time. <see cref="OwnedDay"/> is set when calendar-work-location wrote it: the day it
 /// stands for, with the hash of what it wrote.</summary>
 public sealed record CalEvent(string Id, string Subject, DateTime Start, DateTime End, bool AllDay, string ShowAs,
     IReadOnlyList<string> Categories, bool Mine, int Attendees, bool Cancelled, string? Response)

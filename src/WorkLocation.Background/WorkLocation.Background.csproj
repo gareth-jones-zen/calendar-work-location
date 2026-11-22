@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <AssemblyName>work-location-background</AssemblyName>
+    <AssemblyName>calendar-work-location-background</AssemblyName>
     <RootNamespace>WorkLocation</RootNamespace>
     <PublishAot>true</PublishAot>
   </PropertyGroup>

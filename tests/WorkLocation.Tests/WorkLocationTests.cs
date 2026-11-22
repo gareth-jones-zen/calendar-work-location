@@ -67,7 +67,7 @@ internal sealed class FakeCalendar : ICalendar
 
 public sealed class WorkLocationTests : IDisposable
 {
-    private readonly string dir = Path.Combine(Path.GetTempPath(), "work-location-tests-" + Guid.NewGuid().ToString("N"));
+    private readonly string dir = Path.Combine(Path.GetTempPath(), "calendar-work-location-tests-" + Guid.NewGuid().ToString("N"));
     private readonly FakeCalendar calendar = new();
     private DateTime now = new(2026, 11, 23, 8, 0, 0);   // a Monday
 
@@ -218,7 +218,7 @@ public sealed class WorkLocationTests : IDisposable
         var (code, output, error) = Run(Settings, "run");
         Assert.Equal(1, code);
         Assert.Contains("work plan came back empty", error);
-        Assert.Contains("NOTIFIED work-location couldn't run", output);
+        Assert.Contains("NOTIFIED calendar-work-location couldn't run", output);
         Assert.Empty(calendar.Writes);
 
         calendar.Week("2026-11-23", "remote", "office", "remote", "office", "remote");
@@ -237,7 +237,7 @@ public sealed class WorkLocationTests : IDisposable
         calendar.Fail = new HttpRequestException("Couldn't find login.microsoftonline.com");
         Assert.DoesNotContain("NOTIFIED", Run(Settings, "run").Out);
         Assert.DoesNotContain("NOTIFIED", Run(Settings, "run").Out);
-        Assert.Contains("NOTIFIED work-location couldn't run", Run(Settings, "run").Out);
+        Assert.Contains("NOTIFIED calendar-work-location couldn't run", Run(Settings, "run").Out);
         Assert.DoesNotContain("NOTIFIED", Run(Settings, "run").Out);   // once only
         calendar.Fail = null;
         calendar.Week("2026-11-23", "remote");

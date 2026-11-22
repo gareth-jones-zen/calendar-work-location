@@ -19,11 +19,11 @@ jobs:
     runs-on: windows-latest
     defaults:
       run:
-        working-directory: work-location
+        working-directory: calendar-work-location
     steps:
       - uses: actions/checkout@v5
         with:
-          path: work-location
+          path: calendar-work-location
 
       - uses: actions/checkout@v5
         with:
@@ -37,7 +37,7 @@ jobs:
 
       - uses: actions/setup-dotnet@v5
         with:
-          global-json-file: work-location/global.json
+          global-json-file: calendar-work-location/global.json
 
       - name: Version from the tag
         id: version
@@ -56,16 +56,16 @@ jobs:
           $v = '${{ steps.version.outputs.version }}'
           dotnet publish src/WorkLocation.Console -c Release -r win-x64 -o publish -p:Version=$v
           dotnet publish src/WorkLocation.Background -c Release -r win-x64 -o publish -p:Version=$v
-          & ./publish/work-location.exe --version
+          & ./publish/calendar-work-location.exe --version
 
       - name: Package
         shell: pwsh
         run: |
-          $name = "work-location-${{ steps.version.outputs.version }}-win-x64"
+          $name = "calendar-work-location-${{ steps.version.outputs.version }}-win-x64"
           New-Item -ItemType Directory -Path dist, "stage/$name" | Out-Null
-          Copy-Item publish/work-location.exe, publish/work-location-background.exe, README.md "stage/$name/"
+          Copy-Item publish/calendar-work-location.exe, publish/calendar-work-location-background.exe, README.md "stage/$name/"
           Compress-Archive -Path "stage/$name/*" -DestinationPath "dist/$name.zip"
-          Copy-Item publish/work-location.exe, publish/work-location-background.exe dist/
+          Copy-Item publish/calendar-work-location.exe, publish/calendar-work-location-background.exe dist/
           # LF line endings, so `sha256sum -c` works as well as Get-FileHash
           $sums = Get-ChildItem dist -File | ForEach-Object {
             "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)"
@@ -77,14 +77,14 @@ jobs:
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: |
-            work-location/dist/*.zip
-            work-location/dist/*.exe
+            calendar-work-location/dist/*.zip
+            calendar-work-location/dist/*.exe
 
       - name: Create the release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $flags = @('--generate-notes', '--title', "work-location ${{ steps.version.outputs.version }}")
+          $flags = @('--generate-notes', '--title', "calendar-work-location ${{ steps.version.outputs.version }}")
           if ('${{ steps.version.outputs.prerelease }}' -eq 'True') { $flags += '--prerelease' }
           gh release create '${{ github.ref_name }}' dist/*.zip dist/*.exe dist/SHA256SUMS.txt @flags

@@ -18,37 +18,37 @@ public sealed class CliHost
         GraphCalendar.Client(config).TokenAsync(GraphCalendar.Scopes, true).GetAwaiter().GetResult();
     public Action<string, IEnumerable<string>> Notify { get; init; } = Toast.Notify;
     public Func<ITask> Task { get; init; } = () => new ScheduledTask(Cli.TaskName,
-        "Puts an all-day entry in your calendar for where you're working each day (work-location run).");
+        "Puts an all-day entry in your calendar for where you're working each day (calendar-work-location run).");
     public string ProgramDir { get; init; } = AppContext.BaseDirectory;
     public bool Lock { get; init; } = true;
 }
 
-/// <summary>work-location: an all-day entry in your calendar for each working day, saying where you're working, from
+/// <summary>calendar-work-location: an all-day entry in your calendar for each working day, saying where you're working, from
 /// your work plan and calendar. Exit codes: 0 done; 1 failed; 2 settings, arguments or sign-in.</summary>
 public static class Cli
 {
-    public const string Prog = "work-location";
-    public const string TaskName = "work-location run";
-    public const string BackgroundExe = "work-location-background.exe";
+    public const string Prog = "calendar-work-location";
+    public const string TaskName = "calendar-work-location run";
+    public const string BackgroundExe = "calendar-work-location-background.exe";
 
-    private const string Usage = "usage: work-location [-h] [--version] [--config CONFIG] {plan,run,remove,autostart,sign-in,config} ...";
+    private const string Usage = "usage: calendar-work-location [-h] [--version] [--config CONFIG] {plan,run,remove,autostart,sign-in,config} ...";
 
     // Explicit "\n" throughout (a raw literal would take the .cs file's line endings).
     public const string Help =
         Usage + "\n\n" +
-        "work-location: an all-day entry in your Outlook calendar for each working day, saying where you're working\n" +
+        "calendar-work-location: an all-day entry in your Outlook calendar for each working day, saying where you're working\n" +
         "(\"Working from home\", \"Working from the office\", \"At <conference>\"), from your work plan and your calendar.\n" +
         "It changes only the entries it wrote.\n\n" +
-        "    work-location plan               each day: where you are, why, and what a run would change\n" +
-        "    work-location run                make the calendar match (--dry-run: say what, change nothing)\n" +
-        "    work-location remove             take out its entries from today on (--dry-run)\n" +
-        "    work-location autostart on       run every few minutes, at logon and after unlocking (off, restart, status)\n" +
-        "    work-location sign-in            sign in to Microsoft (once; opens a browser)\n" +
-        "    work-location config             create the settings file (if missing) and say where it is\n\n" +
+        "    calendar-work-location plan               each day: where you are, why, and what a run would change\n" +
+        "    calendar-work-location run                make the calendar match (--dry-run: say what, change nothing)\n" +
+        "    calendar-work-location remove             take out its entries from today on (--dry-run)\n" +
+        "    calendar-work-location autostart on       run every few minutes, at logon and after unlocking (off, restart, status)\n" +
+        "    calendar-work-location sign-in            sign in to Microsoft (once; opens a browser)\n" +
+        "    calendar-work-location config             create the settings file (if missing) and say where it is\n\n" +
         "options:\n" +
         "  -h, --help       show this help message and exit\n" +
         "  --version        show program's version number and exit\n" +
-        "  --config CONFIG  settings file (default %APPDATA%\\work-location\\config.toml)\n";
+        "  --config CONFIG  settings file (default %APPDATA%\\calendar-work-location\\config.toml)\n";
 
     private static readonly string[] Commands = ["plan", "run", "remove", "autostart", "sign-in", "config"];
     private static readonly CultureInfo En = CultureInfo.InvariantCulture;
@@ -105,7 +105,7 @@ public static class Cli
                 case "autostart":
                     return Autostart(config, options.Args[0], host);
             }
-            using var held = host.Lock ? Locks.Exclusive("work-location-" + Locks.Key(config.Path), 300) : null;
+            using var held = host.Lock ? Locks.Exclusive("calendar-work-location-" + Locks.Key(config.Path), 300) : null;
             var code = options.Command switch
             {
                 "plan" => Apply(config, host, dryRun: true, show: true),
@@ -143,7 +143,7 @@ public static class Cli
         var log = dryRun ? (_ => { }) : Logger.Create(config.LogFile, null, clock: host.Now);
         if (!config.Enabled)
         {
-            host.Out.WriteLine("Switched off (enabled = false in the settings): nothing done. `work-location remove` takes its entries out.");
+            host.Out.WriteLine("Switched off (enabled = false in the settings): nothing done. `calendar-work-location remove` takes its entries out.");
             return 0;
         }
         var (first, last) = Period(config, host);
@@ -155,11 +155,11 @@ public static class Cli
         var weekdays = plans.Count(p => p.Day.DayOfWeek is not (DayOfWeek.Saturday or DayOfWeek.Sunday));
         if (workPlan.Count == 0 && weekdays > 0 && plans.Any(p => p.Action == Action.Delete))
             throw new SafetyStop($"Your work plan came back empty for {first:dd/MM} to {last:dd/MM}, so nothing was changed "
-                                 + "(it would have removed entries). Set one in Outlook, or turn work-location off.");
+                                 + "(it would have removed entries). Set one in Outlook, or turn calendar-work-location off.");
         var deletes = plans.Count(p => p.Action == Action.Delete);
         if (deletes > config.MaxDeletes)
             throw new SafetyStop($"A run would remove {deletes} entries, more than max_deletes ({config.MaxDeletes}), so nothing was "
-                                 + "changed. Check `work-location plan`; raise max_deletes if it's right.");
+                                 + "changed. Check `calendar-work-location plan`; raise max_deletes if it's right.");
 
         if (show)
             foreach (var p in plans)
@@ -252,7 +252,7 @@ public static class Cli
             if (state["notified"] is null && (failures >= 3 || error is SignInNeededException or SafetyStop))
             {
                 if (config.Notify)
-                    host.Notify("work-location couldn't run", [error.Message, $"Log: {config.LogFile}"]);
+                    host.Notify("calendar-work-location couldn't run", [error.Message, $"Log: {config.LogFile}"]);
                 state["notified"] = host.Now().ToString("yyyy-MM-ddTHH:mm:ss", En);
             }
             SaveState(config.StateFile, state);
@@ -297,7 +297,7 @@ public static class Cli
         {
             case "on":
                 var background = Path.Combine(host.ProgramDir, BackgroundExe);
-                var exe = File.Exists(background) ? background : Path.Combine(host.ProgramDir, "work-location.exe");
+                var exe = File.Exists(background) ? background : Path.Combine(host.ProgramDir, "calendar-work-location.exe");
                 var schedule = new TaskSchedule
                 {
                     AtLogon = true,
@@ -328,7 +328,7 @@ public static class Cli
             default:
                 var info = task.Status();
                 if (info is null)
-                    host.Out.WriteLine("Autostart is off. `work-location autostart on` turns it on.");
+                    host.Out.WriteLine("Autostart is off. `calendar-work-location autostart on` turns it on.");
                 else
                 {
                     host.Out.WriteLine($"Autostart is on ('{TaskName}').");

@@ -13,23 +13,23 @@ jobs:
       # The shared libraries are a sibling checkout (Directory.Build.props: ..\background-tools-lib).
       - uses: actions/checkout@v5
         with:
-          path: work-location
+          path: calendar-work-location
       - uses: actions/checkout@v5
         with:
           repository: gareth-jones-zen/background-tools-lib
           path: background-tools-lib
       - uses: actions/setup-dotnet@v5
         with:
-          global-json-file: work-location/global.json
+          global-json-file: calendar-work-location/global.json
       - name: Build and test
-        working-directory: work-location
+        working-directory: calendar-work-location
         run: dotnet test -c Release
       - name: Publish (Native AOT)
-        working-directory: work-location
+        working-directory: calendar-work-location
         run: |
           dotnet publish src/WorkLocation.Console -c Release -r win-x64 -o out
           Get-ChildItem out/*.exe | Format-Table Name, Length
       - uses: actions/upload-artifact@v4
         with:
-          name: work-location-win-x64
-          path: work-location/out/*.exe
+          name: calendar-work-location-win-x64
+          path: calendar-work-location/out/*.exe

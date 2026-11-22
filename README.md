@@ -1,4 +1,4 @@
-# work-location
+# calendar-work-location
 
 Puts an all-day entry in your Outlook calendar for each working day, saying where you're working, so colleagues see
 it at a glance: **"Working from home"**, **"Working from the office"**, or **"At XConf Europe"** when you're at a
@@ -6,7 +6,7 @@ conference. Outlook and Teams' work plan knows office and remote, but people loo
 and it has no "elsewhere"; plenty of people keep entries like these by hand.
 
 ```
-work-location plan
+calendar-work-location plan
 ```
 
 ```
@@ -22,13 +22,22 @@ work-location plan
 
 Windows (x64) only; nothing else is needed.
 
-1. Download `work-location-<version>-win-x64.zip` from [Releases](https://github.com/gareth-jones-zen/work-location/releases).
-2. Unzip it to a folder that will stay put, such as `%LOCALAPPDATA%\Programs\work-location`.
-3. `work-location config` creates the settings file; edit the titles. `work-location sign-in` signs you in (once).
-4. `work-location plan` shows what it would do; `work-location run` does it; `work-location autostart on` keeps it
+1. Download `calendar-work-location-<version>-win-x64.zip` from [Releases](https://github.com/gareth-jones-zen/calendar-work-location/releases).
+2. Unzip it to a folder that will stay put, such as `%LOCALAPPDATA%\Programs\calendar-work-location`.
+3. `calendar-work-location config` creates the settings file; edit the titles. `calendar-work-location sign-in` signs you in (once).
+4. `calendar-work-location plan` shows what it would do; `calendar-work-location run` does it; `calendar-work-location autostart on` keeps it
    up to date by itself (every 15 minutes, at logon and a minute after each unlock).
 
 **It needs Calendars.ReadWrite** on Microsoft's "Graph Command Line Tools" app; `sign-in` asks for it.
+
+### Upgrading from work-location (0.1.x)
+
+The tool was called `work-location` until 0.2.0. Its calendar entries keep their hidden `work-location.day` property, so
+the renamed tool recognises them and never duplicates them. To move an install: `work-location autostart off`; unzip
+0.2.0 to `%LOCALAPPDATA%Programslendar-work-location`; point `log_file` and `state_file` at the new names (or move
+the files) and run `calendar-work-location plan`, which should show nothing to create or remove (the body text now
+names the new tool, so existing entries are updated once); then `calendar-work-location autostart on` and delete the
+old folder.
 
 ## How each day is decided
 
@@ -63,19 +72,19 @@ sign-in or a safety stop; once only, until a run succeeds. A write whose answer 
 ## Commands
 
 ```
-work-location plan               each day: where you are, why, and what a run would change
-work-location run [--dry-run]    make the calendar match
-work-location remove [--dry-run] take out its entries from today on
-work-location autostart on       run every few minutes, at logon and after each unlock (off, restart, status)
-work-location sign-in            sign in to Microsoft (once; opens a browser)
-work-location config             create the settings file (if missing) and say where it is
+calendar-work-location plan               each day: where you are, why, and what a run would change
+calendar-work-location run [--dry-run]    make the calendar match
+calendar-work-location remove [--dry-run] take out its entries from today on
+calendar-work-location autostart on       run every few minutes, at logon and after each unlock (off, restart, status)
+calendar-work-location sign-in            sign in to Microsoft (once; opens a browser)
+calendar-work-location config             create the settings file (if missing) and say where it is
 ```
 
 **Exit codes:** 0 done; 1 failed, or stopped for safety; 2 settings, arguments or sign-in.
 
 ## Settings
 
-`%APPDATA%\work-location\config.toml` by default (`--config` or `WORK_LOCATION_CONFIG` for another). Read strictly:
+`%APPDATA%\calendar-work-location\config.toml` by default (`--config` or `WORK_LOCATION_CONFIG` for another). Read strictly:
 an unknown setting, or one of the wrong type, is an error that names it.
 
 ```toml
@@ -84,7 +93,7 @@ login_hint = "you@example.com"
 tenant = "organizations"          # or your organisation's tenant id
 msal_cache = "..."                # optional: another tool's token cache, to share its sign-in
 time_zone = "GMT Standard Time"   # optional (a Windows name); default this PC's
-log_file = "..."                  # optional; default %LOCALAPPDATA%\work-location\work-location.log
+log_file = "..."                  # optional; default %LOCALAPPDATA%\calendar-work-location\calendar-work-location.log
 state_file = "..."                # optional: only whether runs are failing
 enabled = true                    # false: runs do nothing (`remove` takes its entries out)
 weeks_ahead = 4
@@ -92,7 +101,7 @@ every_minutes = 15                # autostart
 after_unlock_minutes = 1          # autostart; 0 for none
 notify = true                     # a notification when runs start failing
 max_deletes = 10
-body = "Written by work-location from your work plan and calendar. Changes made here are overwritten."
+body = "Written by calendar-work-location from your work plan and calendar. Changes made here are overwritten."
 
 [office]
 title = "Working from the office"

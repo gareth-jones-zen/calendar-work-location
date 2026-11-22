@@ -23,7 +23,7 @@ public sealed class Config
 
     // Explicit "\n" (a raw literal would take the .cs file's line endings), written with CRLF.
     public const string Template =
-        "# work-location settings. See the README.\n" +
+        "# calendar-work-location settings. See the README.\n" +
         "# base = \"base-config.toml\"        # settings shared with other tools\n" +
         "# login_hint = \"you@example.com\"\n" +
         "# tenant = \"organizations\"          # or your organisation's tenant id\n" +
@@ -64,7 +64,7 @@ public sealed class Config
     public int? AfterUnlockMinutes { get; init; } = 1;
     public bool Notify { get; init; } = true;
     public int MaxDeletes { get; init; } = 10;
-    public string Body { get; init; } = "Written by work-location from your work plan and calendar. Changes made here are overwritten.";
+    public string Body { get; init; } = "Written by calendar-work-location from your work plan and calendar. Changes made here are overwritten.";
     public required EntryStyle Office { get; init; }
     public required EntryStyle Remote { get; init; }
     public required EntryStyle Elsewhere { get; init; }
@@ -100,14 +100,14 @@ public sealed class Config
     {
         env ??= Environment;
         var local = env("LOCALAPPDATA");
-        return PyPath.Pure(System.IO.Path.Combine(string.IsNullOrEmpty(local) ? PyPath.Home(env) : local, "work-location"));
+        return PyPath.Pure(System.IO.Path.Combine(string.IsNullOrEmpty(local) ? PyPath.Home(env) : local, "calendar-work-location"));
     }
 
     public static string DefaultPath(Func<string, string?>? env = null)
     {
         env ??= Environment;
         var appData = env("APPDATA");
-        return PyPath.Pure(System.IO.Path.Combine(string.IsNullOrEmpty(appData) ? PyPath.Home(env) : appData, "work-location", "config.toml"));
+        return PyPath.Pure(System.IO.Path.Combine(string.IsNullOrEmpty(appData) ? PyPath.Home(env) : appData, "calendar-work-location", "config.toml"));
     }
 
     public static Config Load(string? path = null, Func<string, string?>? env = null)
@@ -116,7 +116,7 @@ public sealed class Config
         var given = !string.IsNullOrEmpty(path) ? path : env(EnvConfig) is { Length: > 0 } fromEnv ? fromEnv : DefaultPath(env);
         var full = PyPath.Resolve(given);
         if (!File.Exists(full))
-            throw new UsageException($"No settings file at {full}. Run `work-location config` to create one.");
+            throw new UsageException($"No settings file at {full}. Run `calendar-work-location config` to create one.");
         TomlTable raw;
         try
         {
@@ -224,7 +224,7 @@ public sealed class Config
             LoginHint = Text(raw, "login_hint", "login_hint"),
             Tenant = Text(raw, "tenant", "tenant") ?? "organizations",
             MsalCache = Text(raw, "msal_cache", "msal_cache") is { } cache ? PathSetting(cache) : null,
-            LogFile = Text(raw, "log_file", "log_file") is { } log ? PathSetting(log) : PyPath.Pure(System.IO.Path.Combine(Local(env), "work-location.log")),
+            LogFile = Text(raw, "log_file", "log_file") is { } log ? PathSetting(log) : PyPath.Pure(System.IO.Path.Combine(Local(env), "calendar-work-location.log")),
             StateFile = Text(raw, "state_file", "state_file") is { } state ? PathSetting(state) : PyPath.Pure(System.IO.Path.Combine(Local(env), "state.json")),
             TimeZone = zone,
             Enabled = Flag("enabled", true),
@@ -233,7 +233,7 @@ public sealed class Config
             AfterUnlockMinutes = raw.ContainsKey("after_unlock_minutes") ? Whole("after_unlock_minutes", 1, 0, 60) is var u && u > 0 ? u : null : 1,
             Notify = Flag("notify", true),
             MaxDeletes = Whole("max_deletes", 10, 0, 1000),
-            Body = Text(raw, "body", "body") ?? "Written by work-location from your work plan and calendar. Changes made here are overwritten.",
+            Body = Text(raw, "body", "body") ?? "Written by calendar-work-location from your work plan and calendar. Changes made here are overwritten.",
             Office = Style("office", Section("office"), "Working from the office"),
             Remote = Style("remote", Section("remote"), "Working from home"),
             Elsewhere = Style("elsewhere", elsewhere, "At {subject}", "subjects", "show_as_signals"),
