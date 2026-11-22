@@ -41,7 +41,9 @@ old folder.
 
 ## How each day is decided
 
-Today and the next `weeks_ahead` weeks (default 4), Monday to Friday:
+Today and the next `weeks_ahead` weeks (default 4), or, if `weeks_ahead` isn't set, to the same date
+`calendar_months_ahead` calendar months on (usually shared from a base file with other calendar tools), Monday to
+Friday:
 
 1. **Leave: no entry.** Your own entries (no one else invited) whose subject matches `leave.subjects` (by default
    starting "Holiday", "Annual leave", "Bank holiday", "On leave" or "Summer holidays") or in a `leave.categories`
@@ -96,7 +98,9 @@ time_zone = "GMT Standard Time"   # optional (a Windows name); default this PC's
 log_file = "..."                  # optional; default %LOCALAPPDATA%\calendar-work-location\calendar-work-location.log
 state_file = "..."                # optional: only whether runs are failing
 enabled = true                    # false: runs do nothing (`remove` takes its entries out)
-weeks_ahead = 4
+weeks_ahead = 4                   # today and this many weeks on; wins over calendar_months_ahead
+# calendar_months_ahead = 3       # if weeks_ahead isn't set: today to the same date this many calendar months on
+                                  # (usually shared from a base file with other calendar tools)
 every_minutes = 15                # autostart
 after_unlock_minutes = 1          # autostart; 0 for none
 notify = true                     # a notification when runs start failing

@@ -47,7 +47,7 @@ public sealed class Config
 
     public static readonly string[] KnownKeys =
     [
-        "login_hint", "tenant", "msal_cache", "log_file", "state_file", "time_zone", "enabled", "weeks_ahead",
+        "login_hint", "tenant", "msal_cache", "log_file", "state_file", "time_zone", "enabled", "weeks_ahead", "calendar_months_ahead",
         "every_minutes", "after_unlock_minutes", "notify", "max_deletes", "body", "office", "remote", "elsewhere", "leave",
     ];
 
@@ -60,6 +60,9 @@ public sealed class Config
     public required TimeZoneInfo TimeZone { get; init; }
     public bool Enabled { get; init; } = true;
     public int WeeksAhead { get; init; } = 4;
+    /// <summary>Set when weeks_ahead isn't: today to the same date this many calendar months on (calendar_months_ahead,
+    /// usually from a base file shared with other calendar tools).</summary>
+    public int? MonthsAhead { get; init; }
     public int EveryMinutes { get; init; } = 15;
     public int? AfterUnlockMinutes { get; init; } = 1;
     public bool Notify { get; init; } = true;
@@ -229,6 +232,7 @@ public sealed class Config
             TimeZone = zone,
             Enabled = Flag("enabled", true),
             WeeksAhead = Whole("weeks_ahead", 4, 0, 52),
+            MonthsAhead = !raw.ContainsKey("weeks_ahead") && raw.ContainsKey("calendar_months_ahead") ? Whole("calendar_months_ahead", 3, 1, 12) : null,
             EveryMinutes = Whole("every_minutes", 15, 1, 1440),
             AfterUnlockMinutes = raw.ContainsKey("after_unlock_minutes") ? Whole("after_unlock_minutes", 1, 0, 60) is var u && u > 0 ? u : null : 1,
             Notify = Flag("notify", true),

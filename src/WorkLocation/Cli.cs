@@ -135,7 +135,9 @@ public static class Cli
     private static (DateOnly First, DateOnly Last) Period(Config config, CliHost host)
     {
         var today = DateOnly.FromDateTime(host.Now());
-        return (today, today.AddDays(Math.Max(1, config.WeeksAhead * 7) - 1));
+        return config.MonthsAhead is { } months
+            ? (today, today.AddMonths(months))
+            : (today, today.AddDays(Math.Max(1, config.WeeksAhead * 7) - 1));
     }
 
     private static int Apply(Config config, CliHost host, bool dryRun, bool show)

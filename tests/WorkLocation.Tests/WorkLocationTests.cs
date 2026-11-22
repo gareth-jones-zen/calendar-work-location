@@ -246,6 +246,40 @@ public sealed class WorkLocationTests : IDisposable
         Assert.DoesNotContain("NOTIFIED", Run(Settings, "run").Out);
     }
 
+    private string PlanPeriod(string settings, string? baseSettings)
+    {
+        if (baseSettings is not null)
+        {
+            File.WriteAllText(Path.Combine(dir, "base.toml"), baseSettings);
+            settings = "base = \"base.toml\"\n" + settings;
+        }
+        var (code, output, error) = Run(settings, "plan");
+        Assert.True(code == 0, error);
+        return output;
+    }
+
+    [Fact]
+    public void Calendar_months_ahead_from_a_base_file_sets_the_period_when_weeks_ahead_isnt_set()
+    {
+        // Monday 23 Nov 2026 to the same date three calendar months on.
+        Assert.Contains("23/11 to 23/02", PlanPeriod(Settings.Replace("weeks_ahead = 1\n", ""), "calendar_months_ahead = 3\n"));
+        Assert.Contains("23/11 to 23/02", PlanPeriod(Settings.Replace("weeks_ahead = 1\n", "calendar_months_ahead = 3\n"), null));
+    }
+
+    [Fact]
+    public void Weeks_ahead_wins_over_calendar_months_ahead()
+    {
+        Assert.Contains("23/11 to 29/11", PlanPeriod(Settings, "calendar_months_ahead = 3\n"));
+        Assert.Null(Config.Load(WriteSettings("weeks_ahead = 2\ncalendar_months_ahead = 3\n"), _ => null).MonthsAhead);
+    }
+
+    [Fact]
+    public void Four_weeks_ahead_by_default_with_neither()
+    {
+        Assert.Contains("23/11 to 20/12", PlanPeriod(Settings.Replace("weeks_ahead = 1\n", ""), "login_hint = \"you@example.com\"\n"));
+        Assert.Contains("calendar_months_ahead", Assert.Throws<UsageException>(() => Config.Load(WriteSettings("calendar_months_ahead = 13\n"), _ => null)).Message);
+    }
+
     [Fact]
     public void Weeks_ahead_sets_the_period_and_remove_takes_out_only_its_own_entries()
     {
