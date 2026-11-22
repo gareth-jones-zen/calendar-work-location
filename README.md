@@ -26,7 +26,7 @@ Windows (x64) only; nothing else is needed.
 2. Unzip it to a folder that will stay put, such as `%LOCALAPPDATA%\Programs\calendar-work-location`.
 3. `calendar-work-location config` creates the settings file; edit the titles. `calendar-work-location sign-in` signs you in (once).
 4. `calendar-work-location plan` shows what it would do; `calendar-work-location run` does it; `calendar-work-location autostart on` keeps it
-   up to date by itself (every 15 minutes and at logon; `after_unlock_minutes` adds a run after each unlock).
+   up to date by itself (when `[schedule]` says: every 15 minutes and at logon by default).
 
 **It needs Calendars.ReadWrite** on Microsoft's "Graph Command Line Tools" app; `sign-in` asks for it.
 
@@ -34,7 +34,7 @@ Windows (x64) only; nothing else is needed.
 
 The tool was called `work-location` until 0.2.0. Its calendar entries keep their hidden `work-location.day` property, so
 the renamed tool recognises them and never duplicates them. To move an install: `work-location autostart off`; unzip
-0.2.0 to `%LOCALAPPDATA%Programslendar-work-location`; point `log_file` and `state_file` at the new names (or move
+0.2.0 to `%LOCALAPPDATA%\Programs\calendar-work-location`; point `log_file` and `state_file` at the new names (or move
 the files) and run `calendar-work-location plan`, which should show nothing to create or remove (the body text now
 names the new tool, so existing entries are updated once); then `calendar-work-location autostart on` and delete the
 old folder.
@@ -101,8 +101,6 @@ enabled = true                    # false: runs do nothing (`remove` takes its e
 weeks_ahead = 4                   # today and this many weeks on; wins over calendar_months_ahead
 # calendar_months_ahead = 3       # if weeks_ahead isn't set: today to the same date this many calendar months on
                                   # (usually shared from a base file with other calendar tools)
-every_minutes = 15                # autostart
-after_unlock_minutes = 0          # autostart: minutes after each unlock to run as well; 0 (the default) for none
 notify = true                     # a notification when runs start failing
 max_deletes = 10
 body = "Written by calendar-work-location from your work plan and calendar. Changes made here are overwritten."
@@ -124,7 +122,28 @@ show_as_signals = ["workingElsewhere"]
 subjects = '^\s*(holiday\b|annual leave|bank holiday|on leave|summer holidays?)'
 categories = ["Holiday"]
 min_hours = 6
+
+[schedule]                        # when the task runs: see below
+every_minutes = 15
 ```
+
+### [schedule]
+
+When the task runs, in the keys every background-tools-lib tool shares (`every_minutes`, `daily_at`, `hours`, `days`,
+`at_logon`, `after_unlock_minutes`, `end_date`): see background-tools-lib's README, "[schedule]: the shared scheduling
+settings". This tool's defaults:
+
+```toml
+[schedule]
+every_minutes = 15
+at_logon = true
+after_unlock_minutes = 0          # 0: no run after unlocking
+```
+
+`autostart on` registers the task from it and records it; `autostart status` says when the settings have changed since
+(run `autostart on` again). A run outside `hours` or `days`, or after `end_date`, does nothing. Before 0.5.0,
+`every_minutes` and `after_unlock_minutes` were top-level settings: they still work, logged as deprecated, but not
+together with `[schedule]`.
 
 **Why "free" by default:** an all-day entry shown as anything else can make you look unavailable all day to people
 scheduling with you.

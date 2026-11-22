@@ -3,6 +3,7 @@ using CalendarDays;
 using PyCompat;
 using Tomlyn;
 using Tomlyn.Model;
+using WinBackground;
 
 namespace WorkLocation;
 
@@ -32,6 +33,11 @@ public sealed class Config
         "enabled = true                     # false: runs do nothing (`remove` takes its entries out)\n" +
         "weeks_ahead = 4                    # today and this many weeks on\n" +
         "\n" +
+        "[schedule]                         # when the task runs (background-tools-lib's shared keys)\n" +
+        "every_minutes = 15\n" +
+        "at_logon = true\n" +
+        "after_unlock_minutes = 0           # 0: no run after unlocking\n" +
+        "\n" +
         "[office]\n" +
         "title = \"Working from the office\"\n" +
         "# show_as = \"free\"\n" +
@@ -49,7 +55,14 @@ public sealed class Config
     [
         "login_hint", "tenant", "msal_cache", "log_file", "state_file", "time_zone", "enabled", "weeks_ahead", "calendar_months_ahead",
         "every_minutes", "after_unlock_minutes", "notify", "max_deletes", "body", "office", "remote", "elsewhere", "leave",
+        "schedule",
     ];
+
+    /// <summary>The task's schedule when the settings don't give one: every 15 minutes and at logon, no unlock run.</summary>
+    public static readonly ScheduleSettings ScheduleDefaults = new() { EveryMinutes = 15, AtLogon = true, AfterUnlockMinutes = 0 };
+
+    /// <summary>The schedule keys this tool took at the top level before [schedule] (0.5.0): still read, logged as deprecated.</summary>
+    public static readonly string[] OldScheduleKeys = ["every_minutes", "after_unlock_minutes"];
 
     public required string Path { get; init; }
     public string? LoginHint { get; init; }
@@ -63,8 +76,13 @@ public sealed class Config
     /// <summary>Set when weeks_ahead isn't: today to the same date this many calendar months on (calendar_months_ahead,
     /// usually from a base file shared with other calendar tools).</summary>
     public int? MonthsAhead { get; init; }
-    public int EveryMinutes { get; init; } = 15;
-    public int? AfterUnlockMinutes { get; init; }   // none by default (GJ, 22 Nov 2026): every 15 minutes and logon are enough
+    /// <summary>When the task runs ([schedule]; the shared keys are background-tools-lib's ScheduleSettings). No unlock
+    /// run by default (GJ, 22 Nov 2026): every 15 minutes and logon are enough.</summary>
+    public ScheduleSettings Schedule { get; init; } = ScheduleDefaults;
+    /// <summary>The old top-level schedule keys this file still uses (empty when it uses [schedule]).</summary>
+    public IReadOnlyList<string> DeprecatedScheduleKeys { get; init; } = [];
+    public int EveryMinutes => Schedule.EveryMinutes ?? 15;
+    public int? AfterUnlockMinutes => Schedule.AfterUnlockMinutes > 0 ? Schedule.AfterUnlockMinutes : null;
     public bool Notify { get; init; } = true;
     public int MaxDeletes { get; init; } = 10;
     public string Body { get; init; } = "Written by calendar-work-location from your work plan and calendar. Changes made here are overwritten.";
@@ -221,6 +239,32 @@ public sealed class Config
             ? sv as string ?? throw Bad("elsewhere.subjects should be text (a pattern), or \"\" for none.")
             : DefaultElsewhere;
 
+        var oldScheduleKeys = OldScheduleKeys.Where(raw.ContainsKey).ToList();
+        ScheduleSettings schedule;
+        try
+        {
+            if (raw.TryGetValue("schedule", out var scheduleTable))
+            {
+                if (oldScheduleKeys.Count > 0)
+                    throw Bad($"{string.Join(" and ", oldScheduleKeys)} and [schedule] are both given: keep [schedule] only.");
+                schedule = ScheduleSettings.Parse(scheduleTable as TomlTable ?? throw Bad("schedule should be a [schedule] section."),
+                    ScheduleDefaults, TaskKind.Job, $"{full}: [schedule]");
+            }
+            else
+            {
+                var old = ScheduleDefaults;
+                if (raw.ContainsKey("every_minutes"))
+                    old = old with { EveryMinutes = Whole("every_minutes", 15, 1, 1440) };
+                if (raw.ContainsKey("after_unlock_minutes"))
+                    old = old with { AfterUnlockMinutes = Whole("after_unlock_minutes", 0, 0, 60) };
+                schedule = ScheduleSettings.Parse(null, old, TaskKind.Job, $"{full}: [schedule]");
+            }
+        }
+        catch (FormatException error)
+        {
+            throw new UsageException(error.Message);
+        }
+
         return new Config
         {
             Path = full,
@@ -233,8 +277,8 @@ public sealed class Config
             Enabled = Flag("enabled", true),
             WeeksAhead = Whole("weeks_ahead", 4, 0, 52),
             MonthsAhead = !raw.ContainsKey("weeks_ahead") && raw.ContainsKey("calendar_months_ahead") ? Whole("calendar_months_ahead", 3, 1, 12) : null,
-            EveryMinutes = Whole("every_minutes", 15, 1, 1440),
-            AfterUnlockMinutes = Whole("after_unlock_minutes", 0, 0, 60) is var u && u > 0 ? u : null,
+            Schedule = schedule,
+            DeprecatedScheduleKeys = oldScheduleKeys,
             Notify = Flag("notify", true),
             MaxDeletes = Whole("max_deletes", 10, 0, 1000),
             Body = Text(raw, "body", "body") ?? "Written by calendar-work-location from your work plan and calendar. Changes made here are overwritten.",

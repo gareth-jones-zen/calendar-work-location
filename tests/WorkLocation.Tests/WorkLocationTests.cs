@@ -309,6 +309,22 @@ public sealed class WorkLocationTests : IDisposable
     }
 
     [Fact]
+    public void The_old_schedule_keys_are_logged_as_deprecated_and_a_run_outside_the_schedule_does_nothing()
+    {
+        calendar.Week("2026-11-23", "remote", "office", "remote", "office", "remote");
+        var (code, _, error) = Run("every_minutes = 20\n" + Settings, "run");
+        Assert.True(code == 0, error);
+        Assert.Contains("every_minutes at the top level are deprecated: move them to [schedule]", File.ReadAllText(Path.Combine(dir, "wl.log")));
+
+        calendar.Writes.Clear();
+        string output;
+        (code, output, error) = Run(Settings + "\n[schedule]\nend_date = \"2026-11-01\"\n", "run");
+        Assert.True(code == 0, error);
+        Assert.Contains("Outside the [schedule]", output);
+        Assert.Empty(calendar.Writes);
+    }
+
+    [Fact]
     public void Stamped_bodies_carry_the_day_and_hash()
     {
         var config = Config.Load(WriteSettings(Settings), _ => null);

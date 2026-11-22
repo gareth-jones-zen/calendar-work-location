@@ -140,4 +140,77 @@ public sealed class ChunkAndAutostartTests : IDisposable
         Assert.Equal(TimeSpan.FromMinutes(2), Autostart("after_unlock_minutes = 2\n").Schedule!.AfterUnlock);
         Assert.Null(Autostart("after_unlock_minutes = 0\n").Schedule!.AfterUnlock);
     }
+
+    private (int Code, string Out, string Err) Cmd(string settings, ITask task, params string[] args)
+    {
+        var path = Path.Combine(dir, "config.toml");
+        File.WriteAllText(path, $"log_file = '{dir}\\wl.log'\nstate_file = '{dir}\\state.json'\n" + settings);
+        var output = new StringWriter { NewLine = "\n" };
+        var errors = new StringWriter { NewLine = "\n" };
+        var code = Cli.Run(["--config", path, .. args], new CliHost
+        {
+            Out = output, Err = errors, Env = _ => null, Lock = false, ProgramDir = dir, Task = () => task,
+        });
+        return (code, output.ToString(), errors.ToString());
+    }
+
+    private sealed class StatusTask(string description) : ITask
+    {
+        public string Name => "calendar-work-location run";
+        public string Enable(string exe, IReadOnlyList<string> args, string? workingDir) => throw new NotSupportedException();
+        public bool Disable() => true;
+        public bool Stop() => true;
+        public IReadOnlyDictionary<string, string>? Status() => new Dictionary<string, string>
+        {
+            ["state"] = "Ready", ["command"] = "x", ["description"] = description,
+        };
+    }
+
+    [Fact]
+    public void Without_a_schedule_section_the_task_is_unchanged_and_its_fingerprint_recorded()
+    {
+        var task = new RecordingTask();
+        var (code, output, error) = Cmd("", task, "autostart", "on");
+        Assert.True(code == 0, error);
+        Assert.Equal(TimeSpan.FromMinutes(15), task.Schedule!.Every);
+        Assert.Null(task.Schedule.DailyAt);
+        Assert.Equal("v1 job every=15 daily=- logon=yes unlock=0", task.Schedule.Fingerprint);
+        Assert.Contains("runs every 15 minutes, at logon, and has run now", output);
+    }
+
+    [Fact]
+    public void The_schedule_section_sets_the_task_and_the_old_keys_still_work()
+    {
+        var task = new RecordingTask();
+        var (code, output, error) = Cmd("[schedule]\nevery_minutes = 30\nafter_unlock_minutes = 1\n", task, "autostart", "on");
+        Assert.True(code == 0, error);
+        Assert.Equal(TimeSpan.FromMinutes(30), task.Schedule!.Every);
+        Assert.Equal(TimeSpan.FromMinutes(1), task.Schedule.AfterUnlock);
+        Assert.Contains("every 30 minutes, at logon, 1 minute(s) after each unlock", output);
+
+        (code, _, error) = Cmd("every_minutes = 20\n", task, "autostart", "on");
+        Assert.True(code == 0, error);
+        Assert.Equal(TimeSpan.FromMinutes(20), task.Schedule!.Every);
+    }
+
+    [Theory]
+    [InlineData("every_minutes = 20\n[schedule]\nevery_minutes = 15\n", "every_minutes and [schedule] are both given")]
+    [InlineData("[schedule]\ncolour = 1\n", "unknown setting colour")]
+    [InlineData("[schedule]\nevery_minutes = 15\ndaily_at = \"07:00\"\n", "set every_minutes or daily_at, not both")]
+    public void A_bad_schedule_is_refused(string settings, string message)
+    {
+        var (code, _, error) = Cmd(settings, new RecordingTask(), "autostart", "on");
+        Assert.Equal(2, code);
+        Assert.Contains(message, error);
+    }
+
+    [Fact]
+    public void Status_says_when_the_task_no_longer_matches_its_schedule()
+    {
+        var registered = new StatusTask("calendar-work-location run (schedule: v1 job every=15 daily=- logon=yes unlock=0)");
+        Assert.DoesNotContain("settings changed", Cmd("", registered, "autostart", "status").Out);
+        Assert.Contains("settings changed since this task was registered: run `calendar-work-location autostart on`",
+            Cmd("[schedule]\nevery_minutes = 60\n", registered, "autostart", "status").Out);
+        Assert.Contains("registered before its schedule was recorded", Cmd("", new StatusTask("calendar-work-location run"), "autostart", "status").Out);
+    }
 }
