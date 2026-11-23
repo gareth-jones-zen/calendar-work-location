@@ -83,7 +83,14 @@ are never touched. Declined and cancelled events don't count.
 **Safety:** if your work plan comes back empty for the whole period while entries would be removed, or a run would
 remove more than `max_deletes` (default 10) entries, it changes nothing and says why. A run that fails is logged, and
 notified on the third failure in a row (a run on waking can find the network not up yet), or at once for a
-sign-in or a safety stop; once only, until a run succeeds. A write whose answer is lost is never resent: the next run reads the calendar.
+sign-in or a safety stop; once only, until a run succeeds.
+
+**A write that may have reached Microsoft is never resent.** Reads, updates and removals are retried on a 429, a 5xx
+or a dropped connection (an update rewrites one of its own entries, which has no attendees, so a repeat tells nobody).
+A new entry is sent once: only a 429 or a request that never connected is tried again. If adding one gets a 5xx, times
+out or loses its connection, the run stops there and fails (logged as "couldn't confirm ... may have gone"), and the
+next run reads the calendar back by the hidden property: an entry that landed is kept, one that didn't is added, and a
+second entry for a day is removed.
 
 ## Commands
 

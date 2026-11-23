@@ -12,6 +12,10 @@ internal sealed class FakeCalendar : ICalendar
 
     public Exception? Fail { get; set; }
 
+    /// <summary>The next create throws this, once; it lands in the calendar first when <see cref="CreateLands"/>.</summary>
+    public Exception? CreateFail { get; set; }
+    public bool CreateLands { get; set; }
+
     public IReadOnlyList<Segment> WorkPlan(DateOnly first, DateOnly last) => Fail is { } fail ? throw fail :
         Plan.Where(s => s.End > first.ToDateTime(TimeOnly.MinValue) && s.Start < last.AddDays(1).ToDateTime(TimeOnly.MinValue)).ToList();
 
@@ -22,6 +26,13 @@ internal sealed class FakeCalendar : ICalendar
     {
         var id = $"new{++next}";
         Writes.Add($"create {Day(body)} {body["subject"]} {body["showAs"]}");
+        if (CreateFail is { } fail)
+        {
+            CreateFail = null;
+            if (CreateLands)
+                Items.Add(Owned(id, body));
+            throw fail;
+        }
         Items.Add(Owned(id, body));
         return id;
     }
@@ -345,6 +356,38 @@ public sealed class WorkLocationTests : IDisposable
         Assert.Equal(new DateOnly(2026, 11, 24), read.OwnedDay);
         Assert.Equal(0, read.Attendees);   // a room isn't a person
         Assert.False(Planner.Differs(read, body));
+    }
+
+    [Fact]
+    public void A_create_whose_answer_is_lost_is_not_resent_and_the_next_run_keeps_it_if_it_landed()
+    {
+        calendar.Week("2026-11-23", "remote", "office", "remote", "office", "remote");
+        calendar.CreateFail = new M365Graph.GraphDeliveryUnknownException("POST", "/me/events", System.Net.HttpStatusCode.ServiceUnavailable, "busy");
+        calendar.CreateLands = true;
+        var (code, _, error) = Run(Settings, "run");
+        Assert.Equal(1, code);
+        Assert.Contains("may have been applied", error);
+        Assert.Equal(["create 2026-11-23 Working from home free"], calendar.Writes);   // sent once; the run stopped there
+        var log = File.ReadAllText(Path.Combine(dir, "wl.log"));
+        Assert.Contains("couldn't confirm: create 2026-11-23 \"Working from home\" may have gone", log);
+        Assert.Contains("run failed: GraphDeliveryUnknownException", log);
+
+        calendar.Writes.Clear();
+        Assert.Equal(0, Run(Settings, "run").Code);   // the next run reads it back: the 23rd is there, so not added again
+        Assert.DoesNotContain(calendar.Writes, w => w.StartsWith("create 2026-11-23", StringComparison.Ordinal));
+        Assert.Equal(4, calendar.Writes.Count);
+        Assert.Single(calendar.Items, e => e.OwnedDay == new DateOnly(2026, 11, 23));
+    }
+
+    [Fact]
+    public void A_create_whose_answer_is_lost_and_that_never_landed_is_written_by_the_next_run()
+    {
+        calendar.Week("2026-11-23", "remote");
+        calendar.CreateFail = new M365Graph.GraphDeliveryUnknownException("POST", "/me/events", new TaskCanceledException("timed out"));
+        Assert.Equal(1, Run(Settings, "run").Code);
+        Assert.Empty(calendar.Items);
+        Assert.Equal(0, Run(Settings, "run").Code);
+        Assert.Single(calendar.Items, e => e.OwnedDay == new DateOnly(2026, 11, 23));
     }
 
     private string WriteSettings(string text)

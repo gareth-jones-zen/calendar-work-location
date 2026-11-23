@@ -91,8 +91,13 @@ public sealed class GraphCalendar(GraphClient graph, TimeZoneInfo zone) : ICalen
         return Text(reply, "id") ?? "";
     }
 
+    /// <summary>A create is sent once (the library's default for a POST): a 5xx or a lost answer throws
+    /// <see cref="GraphDeliveryUnknownException"/>, and the next run reads the calendar back by the stamp, so an entry
+    /// that did land is kept, never added twice. An update is retried like a read: it rewrites the whole of one of the
+    /// tool's own entries, which has no attendees, so a repeat lands the same and tells nobody.</summary>
     public void Update(string id, JsonObject body) =>
-        graph.RequestAsync($"/me/events/{Uri.EscapeDataString(id)}", HttpMethod.Patch, Stamped(body), Scopes, Headers).GetAwaiter().GetResult();
+        graph.RequestAsync($"/me/events/{Uri.EscapeDataString(id)}", HttpMethod.Patch, Stamped(body), Scopes, Headers,
+            policy: GraphRetryPolicy.Read).GetAwaiter().GetResult();
 
     public void Delete(string id) =>
         graph.RequestAsync($"/me/events/{Uri.EscapeDataString(id)}", HttpMethod.Delete, null, Scopes, Headers).GetAwaiter().GetResult();

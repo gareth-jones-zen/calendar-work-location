@@ -184,20 +184,17 @@ public static class Cli
             counts[p.Action] = counts.GetValueOrDefault(p.Action) + 1;
             if (dryRun)
                 continue;
-            switch (p.Action)
+            try
             {
-                case Action.Delete:
-                    calendar.Delete(p.Have!.Id);
-                    log($"removed {p.Day:yyyy-MM-dd} \"{p.Have.Subject}\" ({p.Why})");
-                    break;
-                case Action.Update:
-                    calendar.Update(p.Have!.Id, p.Want!);
-                    log($"updated {p.Day:yyyy-MM-dd} \"{p.Want!["subject"]}\" ({p.Why})");
-                    break;
-                case Action.Create:
-                    calendar.Create(p.Want!);
-                    log($"added {p.Day:yyyy-MM-dd} \"{p.Want!["subject"]}\" ({p.Why})");
-                    break;
+                Write(calendar, p, log);
+            }
+            catch (GraphDeliveryUnknownException)
+            {
+                // It may have landed: not sent again. The next run reads the calendar back by the stamp, so it is
+                // kept if it did, and written if it didn't. The run stops here and fails, through Failed.
+                log($"couldn't confirm: {p.Action.ToString().ToLowerInvariant()} {p.Day:yyyy-MM-dd} \"{(string?)p.Want?["subject"] ?? p.Have?.Subject}\" "
+                    + "may have gone; not sent again, and the next run reads the calendar back to check");
+                throw;
             }
         }
         var summary = $"{first:dd/MM} to {last:dd/MM}: {counts.GetValueOrDefault(Action.Create)} to add, "
@@ -211,6 +208,25 @@ public static class Cli
             log(summary.Replace(" to add", " added").Replace(" to update", " updated").Replace(" to remove", " removed"));
         }
         return 0;
+    }
+
+    private static void Write(ICalendar calendar, DayPlan p, System.Action<string> log)
+    {
+        switch (p.Action)
+        {
+            case Action.Delete:
+                calendar.Delete(p.Have!.Id);
+                log($"removed {p.Day:yyyy-MM-dd} \"{p.Have.Subject}\" ({p.Why})");
+                break;
+            case Action.Update:
+                calendar.Update(p.Have!.Id, p.Want!);
+                log($"updated {p.Day:yyyy-MM-dd} \"{p.Want!["subject"]}\" ({p.Why})");
+                break;
+            case Action.Create:
+                calendar.Create(p.Want!);
+                log($"added {p.Day:yyyy-MM-dd} \"{p.Want!["subject"]}\" ({p.Why})");
+                break;
+        }
     }
 
     internal static string Line(DayPlan p, bool dryRun)
