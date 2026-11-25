@@ -30,6 +30,9 @@ public sealed record DayPlan(DateOnly Day, Where Where, string Why, JsonObject? 
 
 public static class Planner
 {
+    /// <summary>Why a day's extra entry is removed (a create that landed twice).</summary>
+    public const string SecondEntry = "a second entry for the day";
+
     private static readonly CultureInfo En = CultureInfo.InvariantCulture;
 
     /// <summary>Every day from first to last: where you are, and what to change. Pure.</summary>
@@ -60,7 +63,7 @@ public static class Planner
             }
             // More than one owned entry for a day (a create that landed twice): keep the first, delete the rest.
             foreach (var extra in have.Skip(1))
-                plans.Add(new DayPlan(day, where, "a second entry for the day", null, extra, Action.Delete));
+                plans.Add(new DayPlan(day, where, SecondEntry, null, extra, Action.Delete));
             var current = have.FirstOrDefault();
             var action = (want, current) switch
             {

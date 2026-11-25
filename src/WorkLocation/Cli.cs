@@ -186,7 +186,8 @@ public static class Cli
                 continue;
             try
             {
-                Write(calendar, p, log);
+                var item = Write(calendar, p, log);
+                Activity.Changed(config, host.Now, log, p, item);
             }
             catch (GraphDeliveryUnknownException)
             {
@@ -194,6 +195,7 @@ public static class Cli
                 // kept if it did, and written if it didn't. The run stops here and fails, through Failed.
                 log($"couldn't confirm: {p.Action.ToString().ToLowerInvariant()} {p.Day:yyyy-MM-dd} \"{(string?)p.Want?["subject"] ?? p.Have?.Subject}\" "
                     + "may have gone; not sent again, and the next run reads the calendar back to check");
+                Activity.Changed(config, host.Now, log, p, p.Have?.Id, unconfirmed: true);
                 throw;
             }
         }
@@ -210,23 +212,25 @@ public static class Cli
         return 0;
     }
 
-    private static void Write(ICalendar calendar, DayPlan p, System.Action<string> log)
+    /// <summary>Makes one day's change; the entry's id.</summary>
+    private static string? Write(ICalendar calendar, DayPlan p, System.Action<string> log)
     {
         switch (p.Action)
         {
             case Action.Delete:
                 calendar.Delete(p.Have!.Id);
                 log($"removed {p.Day:yyyy-MM-dd} \"{p.Have.Subject}\" ({p.Why})");
-                break;
+                return p.Have.Id;
             case Action.Update:
                 calendar.Update(p.Have!.Id, p.Want!);
                 log($"updated {p.Day:yyyy-MM-dd} \"{p.Want!["subject"]}\" ({p.Why})");
-                break;
+                return p.Have.Id;
             case Action.Create:
-                calendar.Create(p.Want!);
+                var id = calendar.Create(p.Want!);
                 log($"added {p.Day:yyyy-MM-dd} \"{p.Want!["subject"]}\" ({p.Why})");
-                break;
+                return id;
         }
+        return null;
     }
 
     internal static string Line(DayPlan p, bool dryRun)
@@ -258,6 +262,7 @@ public static class Cli
             {
                 calendar.Delete(e.Id);
                 log($"removed {e.OwnedDay:yyyy-MM-dd} \"{e.Subject}\" (remove)");
+                Activity.Removed(config, host.Now, log, e);
             }
         }
         host.Out.WriteLine(owned.Count == 0 ? "None of its entries from today on." : $"{owned.Count} {(dryRun ? "to remove (nothing changed)" : "removed")}.");

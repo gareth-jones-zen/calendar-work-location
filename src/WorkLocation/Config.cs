@@ -55,7 +55,7 @@ public sealed class Config
     [
         "login_hint", "tenant", "msal_cache", "log_file", "state_file", "time_zone", "enabled", "weeks_ahead", "calendar_months_ahead",
         "every_minutes", "after_unlock_minutes", "notify", "max_deletes", "body", "office", "remote", "elsewhere", "leave",
-        "schedule",
+        "schedule", "journal_file",
     ];
 
     /// <summary>The task's schedule when the settings don't give one: every 15 minutes and at logon, no unlock run.</summary>
@@ -70,6 +70,9 @@ public sealed class Config
     public string? MsalCache { get; init; }
     public required string LogFile { get; init; }
     public required string StateFile { get; init; }
+    /// <summary>The shared activity journal (0.8.0; journal_file, usually from the base): one line for each entry added,
+    /// updated or removed. Null writes none.</summary>
+    public string? JournalFile { get; init; }
     public required TimeZoneInfo TimeZone { get; init; }
     public bool Enabled { get; init; } = true;
     public int WeeksAhead { get; init; } = 4;
@@ -283,6 +286,7 @@ public sealed class Config
             MsalCache = Text(raw, "msal_cache", "msal_cache") is { } cache ? PathSetting(cache) : null,
             LogFile = Text(raw, "log_file", "log_file") is { } log ? PathSetting(log) : PyPath.Pure(System.IO.Path.Combine(Local(env), "calendar-work-location.log")),
             StateFile = Text(raw, "state_file", "state_file") is { } state ? PathSetting(state) : PyPath.Pure(System.IO.Path.Combine(Local(env), "state.json")),
+            JournalFile = Text(raw, "journal_file", "journal_file") is { } journal ? PathSetting(journal) : null,
             TimeZone = zone,
             Enabled = Flag("enabled", true),
             WeeksAhead = Whole("weeks_ahead", 4, 0, 52),

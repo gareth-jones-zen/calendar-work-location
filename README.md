@@ -92,6 +92,33 @@ out or loses its connection, the run stops there and fails (logged as "couldn't 
 next run reads the calendar back by the hidden property: an entry that landed is kept, one that didn't is added, and a
 second entry for a day is removed.
 
+## The shared activity journal (0.8.0)
+
+With **`journal_file`** set (top level, or in the base file so every tool shares it: by convention
+`journal_file = "%EA_LOCAL%/journal.jsonl"`), each entry it adds, updates or removes is also **one JSON line in a
+journal shared by the tools**, written through background-tools-lib's
+[ActivityJournal](https://github.com/gareth-jones-zen/background-tools-lib#activityjournal), for a "while you were
+away" view. Without it, nothing is written (the default).
+
+```json
+{"id":"8a41c0e2d913","when":"2026-11-23T08:00:04.218+00:00","tool":"calendar-work-location","what":"add","by":"auto","subject":"Working from home, Mon 23 Nov 2026","rule":"remote","why":"work plan: remote","item":"AAMkAD...","sensitivity":"normal"}
+```
+
+| `what` | When | `undo` |
+|---|---|---|
+| `add`, `update`, `remove` | `run` (by the task, or by hand: the same rules), `by` `auto` | none: the next run would put it back as the rules say |
+| `remove` | `remove`, `by` `hand`, `rule` `by hand` | `calendar-work-location run` (acts at once; `plan` shows what it would write) |
+
+- **Only what was sent**: never `plan` or a `--dry-run`. A change whose answer was lost (it may or may not have
+  landed) has `"outcome": "unconfirmed"`; the next run reads the calendar back as always.
+- `subject` is the entry's title and its day; `rule` is the kind of day (`office`, `remote`, `elsewhere`, `leave`,
+  `none`); `why` is the plan's reason (`work plan: remote`, `no work plan`, `a second entry for the day`); `item` is the
+  entry's event id.
+- **Sensitivity**: `normal` for an office or remote day (what colleagues see anyway). An elsewhere or leave day's reason
+  quotes another of your events (the conference, the leave entry), so that goes in the subject, the line is `private`
+  (a screen shown to others hides the subject), and `why` says only `elsewhere`, `leave` or `bank holiday`.
+- **Writing it never fails the run**: a problem is logged (`journal: couldn't write to ...`) and the run carries on.
+
 ## Commands
 
 ```
@@ -118,6 +145,7 @@ msal_cache = "..."                # optional: another tool's token cache, to sha
 time_zone = "GMT Standard Time"   # optional (a Windows name); default this PC's
 log_file = "..."                  # optional; default %LOCALAPPDATA%\calendar-work-location\calendar-work-location.log
 state_file = "..."                # optional: only whether runs are failing
+journal_file = "..."              # optional: the shared activity journal (0.8.0; usually from the base file)
 enabled = true                    # false: runs do nothing (`remove` takes its entries out)
 weeks_ahead = 4                   # today and this many weeks on; wins over calendar_months_ahead
 # calendar_months_ahead = 3       # if weeks_ahead isn't set: today to the same date this many calendar months on
