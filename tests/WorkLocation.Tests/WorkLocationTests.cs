@@ -160,8 +160,8 @@ public sealed class WorkLocationTests : IDisposable
         calendar.Week("2026-11-23", "remote", "office", "remote", "office", "remote");
         calendar.Items.Add(FakeCalendar.Event("Holiday (half day) (Principal Solutions Architect)", "2026-11-23T13:00", "2026-11-23T17:00"));
         calendar.Items.Add(FakeCalendar.Event("Christmas Day", "2026-11-24T00:00", "2026-11-25T00:00", allDay: true, showAs: "oof", categories: ["Holiday"]));
-        calendar.Items.Add(FakeCalendar.Event("Dan Clark annual leave", "2026-11-25T00:00", "2026-11-26T00:00", allDay: true, showAs: "free"));   // someone else's
-        calendar.Items.Add(FakeCalendar.Event("Kurt Holiday - All Day", "2026-11-26T00:00", "2026-11-27T00:00", allDay: true, mine: false, attendees: 3));
+        calendar.Items.Add(FakeCalendar.Event("Sam Rivers annual leave", "2026-11-25T00:00", "2026-11-26T00:00", allDay: true, showAs: "free"));   // someone else's
+        calendar.Items.Add(FakeCalendar.Event("Jo Holiday - All Day", "2026-11-26T00:00", "2026-11-27T00:00", allDay: true, mine: false, attendees: 3));
         Run(Settings, "run");
         Assert.Equal(["2026-11-23", "2026-11-25", "2026-11-26", "2026-11-27"],
             calendar.Writes.Select(w => w.Split(' ')[1]));
